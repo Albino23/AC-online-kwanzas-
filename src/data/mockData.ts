@@ -1,0 +1,311 @@
+import { Store, Product, User } from '../types';
+
+export const ADMIN_EMAIL = 'albinojambav@gmail.com';
+export const ADMIN_PHONE = '+244936304817';
+export const ADMIN_SUPPORT_EMAIL = 'albinocapitango23@gmail.com';
+
+export const ANGOLAN_BANKS = [
+  'Banco Angolano de Investimentos (BAI)',
+  'Banco de Fomento Angola (BFA)',
+  'Banco Millennium Atlântico (BMA)',
+  'Banco BIC Angola (BIC)',
+  'Banco de Poupança e Crédito (BPC)',
+  'Standard Bank Angola',
+  'Banco Sol',
+  'Banco Keve',
+  'Banco Yetu',
+  'Banco de Comércio e Indústria (BCI)',
+  'Banco Valor (BVB)',
+  'Finibanco Angola'
+];
+
+export const ANGOLA_PROVINCES = [
+  'Luanda',
+  'Benguela',
+  'Huambo',
+  'Huíla',
+  'Cabinda',
+  'Cuanza Sul',
+  'Cuanza Norte',
+  'Uíge',
+  'Zaire',
+  'Malanje',
+  'Namibe',
+  'Cunene',
+  'Bié',
+  'Moxico',
+  'Lunda Norte',
+  'Lunda Sul',
+  'Cuando Cubango',
+  'Bengo'
+];
+
+export const PRODUCT_CATEGORIES = [
+  'Tecnologia & Telemóveis',
+  'Eletrónica & Informática',
+  'Alimentação & Cabazes',
+  'Moda & Tecidos Africanos',
+  'Casa & Eletrodomésticos',
+  'Geradores & Energia',
+  'Auto & Peças',
+  'Beleza & Cosmética'
+];
+
+export const formatKwanza = (amount: number): string => {
+  return new Intl.NumberFormat('pt-AO', {
+    style: 'decimal',
+    maximumFractionDigits: 0,
+  }).format(amount) + ' Kz';
+};
+
+export const INITIAL_ADMIN_USER: User = {
+  id: 'user-admin',
+  name: 'Albino Jamba (Administrador Geral)',
+  email: ADMIN_EMAIL,
+  phone: ADMIN_PHONE,
+  role: 'admin',
+  province: 'Luanda',
+  createdAt: '2025-01-01T00:00:00.000Z',
+};
+
+// Initial verified demo stores
+export const INITIAL_STORES: Store[] = [
+  {
+    id: 'store-1',
+    ownerId: 'user-vendor-1',
+    ownerEmail: 'techangola@store.ao',
+    name: 'TechAngola Lda',
+    nif: '5417082910',
+    category: 'Tecnologia & Telemóveis',
+    province: 'Luanda',
+    address: 'Av. 4 de Fevereiro, Marginal de Luanda, Loja 14',
+    logo: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=300&auto=format&fit=crop&q=80',
+    banner: 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=1200&auto=format&fit=crop&q=80',
+    rating: 4.9,
+    totalSales: 42,
+    freeTrialStartDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    freeTrialEndDate: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000).toISOString(),
+    isVip: true,
+    vipStatus: 'aprovado',
+    vipPrice: 150000,
+    status: 'ativa',
+    supportPhone: '+244 923 111 222',
+    supportEmail: 'apoio@techangola.ao',
+    paymentDetails: {
+      bankName: 'Banco Angolano de Investimentos (BAI)',
+      accountHolder: 'TechAngola Comércio de Equipamentos Lda',
+      iban: 'AO06004000001234567890123',
+      accountNumber: '123456789',
+      ibanActive: true,
+      entity: '10423',
+      reference: '908123456',
+      referenceInstructions: 'Liquidação no Multicaixa ou MCX Express no menu Pagamentos > Serviços.',
+      referenceActive: true,
+      mcxPhone: '923111222',
+      mcxInstructions: 'Enviar notificação de compra para o terminal MCX Express cadastrado.',
+      mcxActive: true,
+      deliveryPaymentActive: true,
+      deliveryInstructions: 'Pagamento por TPA Multicaixa móvel no momento da entrega em Luanda.'
+    },
+    createdAt: '2025-01-15T10:00:00.000Z',
+  },
+  {
+    id: 'store-2',
+    ownerId: 'user-vendor-2',
+    ownerEmail: 'cabazes.benguela@store.ao',
+    name: 'Super Cabazes Benguela',
+    nif: '5489012341',
+    category: 'Alimentação & Cabazes',
+    province: 'Benguela',
+    address: 'Zona Comercial da Baía Farta, Benguela',
+    logo: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&auto=format&fit=crop&q=80',
+    rating: 4.8,
+    totalSales: 89,
+    freeTrialStartDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+    freeTrialEndDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+    isVip: false,
+    vipStatus: 'solicitado',
+    status: 'ativa',
+    supportPhone: '+244 945 777 888',
+    supportEmail: 'contacto@cabazesbenguela.ao',
+    paymentDetails: {
+      bankName: 'Banco de Fomento Angola (BFA)',
+      accountHolder: 'Distribuidora Benguela Alimentar Lda',
+      iban: 'AO06000600009876543210987',
+      accountNumber: '987654321',
+      ibanActive: true,
+      entity: '10984',
+      reference: '887234109',
+      referenceInstructions: 'Pagamento de faturas no ATM Multicaixa com o comprovativo.',
+      referenceActive: true,
+      mcxPhone: '945777888',
+      mcxInstructions: 'Número Express autorizado para débitos diretos.',
+      mcxActive: true,
+      deliveryPaymentActive: true,
+      deliveryInstructions: 'Disponível em Benguela e Lobito.'
+    },
+    createdAt: '2025-02-01T12:00:00.000Z',
+  },
+  {
+    id: 'store-3',
+    ownerId: 'user-vendor-3',
+    ownerEmail: 'samakaka.moda@store.ao',
+    name: 'Atelier Samakaka Real',
+    nif: '5420194821',
+    category: 'Moda & Tecidos Africanos',
+    province: 'Huambo',
+    address: 'Cidade Alta do Huambo, Rua do Comércio nº 42',
+    logo: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=300&auto=format&fit=crop&q=80',
+    rating: 5.0,
+    totalSales: 34,
+    freeTrialStartDate: new Date().toISOString(),
+    freeTrialEndDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+    isVip: false,
+    vipStatus: 'nenhum',
+    status: 'ativa',
+    supportPhone: '+244 991 333 444',
+    supportEmail: 'atelier@samakaka.ao',
+    paymentDetails: {
+      bankName: 'Banco Millennium Atlântico (BMA)',
+      accountHolder: 'Samakaka Moda & Artes Lda',
+      iban: 'AO06005500004561237890456',
+      accountNumber: '456123789',
+      ibanActive: true,
+      entity: '',
+      reference: '',
+      referenceActive: false,
+      mcxPhone: '991333444',
+      mcxActive: true,
+      deliveryPaymentActive: false
+    },
+    createdAt: '2025-03-01T08:00:00.000Z',
+  }
+];
+
+export const INITIAL_PRODUCTS: Product[] = [
+  {
+    id: 'prod-1',
+    storeId: 'store-1',
+    storeName: 'TechAngola Lda',
+    name: 'Kit Starlink Standard V4 (Pronta Entrega em Luanda)',
+    description: 'Antena Starlink nova lacrada para internet via satélite de alta velocidade em qualquer província de Angola. Acompanha roteador Wi-Fi 6, cabos originais e base de montagem.',
+    price: 680000,
+    originalPrice: 750000,
+    stock: 8,
+    category: 'Tecnologia & Telemóveis',
+    province: 'Luanda',
+    images: [
+      'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=80'
+    ],
+    featured: true,
+    active: true,
+    rating: 4.9,
+    reviewCount: 26,
+    createdAt: '2025-02-10T10:00:00.000Z',
+  },
+  {
+    id: 'prod-2',
+    storeId: 'store-1',
+    storeName: 'TechAngola Lda',
+    name: 'iPhone 15 Pro Max 256GB Titânio Natural',
+    description: 'Novo na caixa lacrado com garantia de 1 ano. Compatível com todas as redes móveis nacionais (Unitel, Africell e Movicel). Suporte eSIM e SIM físico.',
+    price: 1350000,
+    originalPrice: 1450000,
+    stock: 5,
+    category: 'Tecnologia & Telemóveis',
+    province: 'Luanda',
+    images: [
+      'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=800&auto=format&fit=crop&q=80'
+    ],
+    featured: true,
+    active: true,
+    rating: 5.0,
+    reviewCount: 38,
+    createdAt: '2025-02-12T11:00:00.000Z',
+  },
+  {
+    id: 'prod-3',
+    storeId: 'store-2',
+    storeName: 'Super Cabazes Benguela',
+    name: 'Grande Cabaz Alimentar Familiar Mensal (30 Itens)',
+    description: 'Inclui: 25kg Arroz Agulha, 25kg Fuba Nacional de Milho, 10kg Açúcar, 5L Óleo Alimentar, 10kg Massa Esparguete, Leite Nido, Feijão Manteiga, Sal Fino e Enlatados de primeira qualidade.',
+    price: 85000,
+    originalPrice: 98000,
+    stock: 35,
+    category: 'Alimentação & Cabazes',
+    province: 'Benguela',
+    images: [
+      'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=800&auto=format&fit=crop&q=80'
+    ],
+    featured: true,
+    active: true,
+    rating: 4.8,
+    reviewCount: 64,
+    createdAt: '2025-02-15T14:00:00.000Z',
+  },
+  {
+    id: 'prod-4',
+    storeId: 'store-3',
+    storeName: 'Atelier Samakaka Real',
+    name: 'Conjunto Tradicional Samakaka Autêntico Feito à Mão',
+    description: 'Vestuário tradicional de gala em tecido Samakaka 100% algodão nobre. Cores vivas representativas da cultura angolana, corte moderno e acabamentos costurados com precisão.',
+    price: 45000,
+    originalPrice: 55000,
+    stock: 12,
+    category: 'Moda & Tecidos Africanos',
+    province: 'Huambo',
+    images: [
+      'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80'
+    ],
+    featured: true,
+    active: true,
+    rating: 4.9,
+    reviewCount: 19,
+    createdAt: '2025-02-18T09:00:00.000Z',
+  },
+  {
+    id: 'prod-5',
+    storeId: 'store-1',
+    storeName: 'TechAngola Lda',
+    name: 'Gerador Inverter Silencioso 3.5kVA Gasolina',
+    description: 'Gerador a gasolina super silencioso com tecnologia Inverter, ideal para residências, escritórios e ar condicionado. Baixo consumo e partida elétrica.',
+    price: 390000,
+    originalPrice: 430000,
+    stock: 6,
+    category: 'Geradores & Energia',
+    province: 'Luanda',
+    images: [
+      'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80'
+    ],
+    featured: true,
+    active: true,
+    rating: 4.7,
+    reviewCount: 14,
+    createdAt: '2025-02-20T16:00:00.000Z',
+  },
+  {
+    id: 'prod-6',
+    storeId: 'store-2',
+    storeName: 'Super Cabazes Benguela',
+    name: 'Caixa de Bacalhau da Noruega Postas Altas 5kg',
+    description: 'Bacalhau salgado seco legítimo da Noruega (Gadus Morhua), postas graúdas e selecionadas para culinária especial de celebrações e jantares de família.',
+    price: 65000,
+    originalPrice: 72000,
+    stock: 20,
+    category: 'Alimentação & Cabazes',
+    province: 'Benguela',
+    images: [
+      'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=800&auto=format&fit=crop&q=80'
+    ],
+    featured: true,
+    active: true,
+    rating: 5.0,
+    reviewCount: 31,
+    createdAt: '2025-02-22T08:30:00.000Z',
+  }
+];

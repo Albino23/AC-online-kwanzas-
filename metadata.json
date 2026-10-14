@@ -1,0 +1,6 @@
+{
+  "name": "AC Online Kwanza - Marketplace Angola",
+  "description": "Plataforma de comércio eletrónico em Angola com pagamentos em Kwanzas (Kz), Multicaixa Express, gestão de lojas e controlo de vendedores.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
