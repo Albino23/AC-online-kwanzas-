@@ -15,6 +15,37 @@ export type OrderStatus =
 
 export type PaymentMethodType = 'iban' | 'referencia' | 'multicaixa_express' | 'entrega';
 
+export type VipPlanType = 'vip_1' | 'vip_2' | 'vip_premium';
+
+export interface VipPackage {
+  id: VipPlanType;
+  name: string;
+  durationMonths: number | 'ilimitado';
+  durationLabel: string;
+  description: string;
+  badge: string;
+  popular?: boolean;
+  features: string[];
+}
+
+export interface ProfileClaim {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userPhone?: string;
+  userRole: UserRole;
+  storeId?: string;
+  storeName?: string;
+  reason: string;
+  claimNumber: number; // 1 a 5
+  status: 'pendente' | 'aprovado' | 'rejeitado';
+  adminNotes?: string;
+  reviewedBy?: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -24,8 +55,13 @@ export interface User {
   storeId?: string;
   avatar?: string;
   province?: string;
+  authProvider?: 'email' | 'google';
+  hasPassword?: boolean;
   isSuspended?: boolean;
   suspensionReason?: string;
+  profileEditsCount?: number; // 0 = pode editar livremente 1 vez; >=1 = bloqueado até reivindicação
+  profileEditUnlocked?: boolean; // True quando aprovado pelo admin para 1 nova edição
+  claimsCount?: number; // Máximo de 5 reivindicações ao longo da vida da conta
   createdAt: string;
 }
 
@@ -66,15 +102,26 @@ export interface Store {
   banner?: string;
   rating: number;
   totalSales: number;
-  freeTrialStartDate: string; // ISO date
-  freeTrialEndDate: string; // ISO date (60 days)
+  freeTrialStartDate: string; // ISO date (60 dias grátis a contar da criação)
+  freeTrialEndDate: string; // ISO date (60 dias)
   isVip: boolean;
+  vipPlan?: VipPlanType; // 'vip_1' (6 meses), 'vip_2' (6 meses), 'vip_premium' (ilimitado)
+  vipPlanName?: string;
+  vipStartDate?: string;
+  vipEndDate?: string; // undefined if vip_premium
   vipPrice?: number;
   vipStatus?: 'nenhum' | 'solicitado' | 'aprovado' | 'rejeitado';
+  vipRequestedPlan?: VipPlanType;
+  vipRequestedDate?: string;
   status: StoreStatus;
   claimReason?: string; // Motivo quando reivindicada pelo administrador
   isSuspended?: boolean;
+  suspensionDate?: string;
   suspensionReason?: string;
+  claimDeadlineDate?: string; // 30 dias após suspensão para contacto/reivindicação
+  profileEditsCount?: number;
+  profileEditUnlocked?: boolean;
+  claimsCount?: number;
   supportPhone?: string;
   supportEmail?: string;
   paymentDetails: StorePaymentDetails;
@@ -204,4 +251,16 @@ export interface ReportItem {
   status: 'pendente' | 'investigando' | 'resolvida' | 'rejeitada';
   resolutionNotes?: string;
   createdAt: string;
+}
+
+export interface LoginHistoryItem {
+  id: string;
+  userId?: string;
+  userEmail: string;
+  userName: string;
+  role: UserRole;
+  authMethod: 'email_password' | 'google';
+  timestamp: string; // ISO date
+  ip?: string;
+  status: 'sucesso' | 'falha';
 }

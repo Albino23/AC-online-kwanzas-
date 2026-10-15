@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { formatKwanza, ANGOLAN_BANKS, ANGOLA_PROVINCES, PRODUCT_CATEGORIES } from '../../data/mockData';
-import { Product, Store, PaymentMethodType } from '../../types';
+import { formatKwanza, ANGOLAN_BANKS, ANGOLA_PROVINCES, PRODUCT_CATEGORIES, VIP_PACKAGES } from '../../data/mockData';
+import { Product, Store, PaymentMethodType, VipPlanType } from '../../types';
 import {
   Store as StoreIcon,
   Package,
@@ -26,7 +26,10 @@ import {
   Building2,
   Calendar,
   X,
-  Eye
+  Eye,
+  FileText,
+  ShieldAlert,
+  Lock,
 } from 'lucide-react';
 
 export const VendorDashboard: React.FC = () => {
@@ -43,16 +46,26 @@ export const VendorDashboard: React.FC = () => {
     deleteStoreProduct,
     verifyOrderPayment,
     updateOrderStatus,
+    openInvoiceModal,
     requestPayout,
     requestVipUpgrade,
+    requestVipUpgradeWithPlan,
     openChatWithCustomer,
+    openChatWithAdmin,
+    setClaimProfileModalOpen,
+    sendChatMessage,
+    activeConversationMessages,
+    activeConversationId,
     setChangePasswordModalOpen,
     showToast,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<
-    'visao-geral' | 'produtos' | 'encomendas' | 'financas' | 'dados-pagamento' | 'chat' | 'vip' | 'definicoes'
+    'visao-geral' | 'produtos' | 'encomendas' | 'financas' | 'dados-pagamento' | 'chat' | 'vip' | 'definicoes' | 'chat-admin'
   >('visao-geral');
+
+  const [selectedVipPlan, setSelectedVipPlan] = useState<VipPlanType>('vip_2');
+  const [adminChatInput, setAdminChatInput] = useState('');
 
   // Product form state
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -813,24 +826,35 @@ export const VendorDashboard: React.FC = () => {
                       </select>
                     </div>
 
-                    {ord.status !== 'pagamento_confirmado' && ord.status !== 'concluida' && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setRejectionModalOrder(ord.id)}
-                          className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
-                        >
-                          Rejeitar Comprovativo
-                        </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openInvoiceModal(ord)}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                        title="Ver e Imprimir Fatura Comercial / Pró-forma"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-amber-600" />
+                        Ver Fatura
+                      </button>
 
-                        <button
-                          onClick={() => verifyOrderPayment(ord.id, true)}
-                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          Confirmar Pagamento (+ {formatKwanza(ord.totalAmount)})
-                        </button>
-                      </div>
-                    )}
+                      {ord.status !== 'pagamento_confirmado' && ord.status !== 'concluida' && (
+                        <>
+                          <button
+                            onClick={() => setRejectionModalOrder(ord.id)}
+                            className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                          >
+                            Rejeitar Comprovativo
+                          </button>
+
+                          <button
+                            onClick={() => verifyOrderPayment(ord.id, true)}
+                            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Confirmar Pagamento (+ {formatKwanza(ord.totalAmount)})
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

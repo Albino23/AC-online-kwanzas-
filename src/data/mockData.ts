@@ -1,4 +1,4 @@
-import { Store, Product, User } from '../types';
+import { Store, Product, User, VipPackage } from '../types';
 
 export const ADMIN_EMAIL = 'albinojambav@gmail.com';
 export const ADMIN_PHONE = '+244936304817';
@@ -179,7 +179,91 @@ export const INITIAL_STORES: Store[] = [
       deliveryPaymentActive: false
     },
     createdAt: '2025-03-01T08:00:00.000Z',
+  },
+  {
+    id: 'store-4',
+    ownerId: 'user-vendor-4',
+    ownerEmail: 'artesanato.kwanza@store.ao',
+    name: 'Artesanato & Madeiras do Cuanza',
+    nif: '5409182736',
+    category: 'Móveis & Decoração',
+    province: 'Cuanza Sul',
+    address: 'Sumbe, Bairro da Liberdade nº 88',
+    logo: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=300&auto=format&fit=crop&q=80',
+    rating: 4.6,
+    totalSales: 18,
+    freeTrialStartDate: new Date(Date.now() - 65 * 24 * 60 * 60 * 1000).toISOString(),
+    freeTrialEndDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    isVip: false,
+    vipStatus: 'nenhum',
+    status: 'suspensa',
+    isSuspended: true,
+    suspensionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    suspensionReason: 'Fim do período gratuito de 60 dias sem ativação de Plano VIP',
+    claimDeadlineDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(), // Restam 25 dias dos 30 dias para contacto
+    supportPhone: '+244 928 444 555',
+    supportEmail: 'contacto@artesanatokwanza.ao',
+    paymentDetails: {
+      bankName: 'Banco BIC Angola (BIC)',
+      accountHolder: 'Artesanato Cuanza Sul Lda',
+      iban: 'AO06001100007894561230111',
+      accountNumber: '789456123',
+      ibanActive: true,
+      referenceActive: false,
+      deliveryPaymentActive: true,
+      deliveryInstructions: 'Entrega na província do Cuanza Sul e Luanda.'
+    },
+    createdAt: new Date(Date.now() - 65 * 24 * 60 * 60 * 1000).toISOString(),
   }
+];
+
+export const VIP_PACKAGES: VipPackage[] = [
+  {
+    id: 'vip_1',
+    name: 'VIP 1',
+    durationMonths: 6,
+    durationLabel: '6 Meses',
+    description: 'Destaque prioritário e vendas contínuas na AC Online Kwanza com validade de 6 meses.',
+    badge: 'Semestral',
+    features: [
+      'Validade garantida de 6 meses',
+      'Selo dourado de Loja VIP Oficial',
+      'Prioridade nos resultados de pesquisa',
+      'Produtos na montra de destaques da página principal',
+      'Suporte direto prioritário via chat com a administração',
+    ],
+  },
+  {
+    id: 'vip_2',
+    name: 'VIP 2',
+    durationMonths: 6,
+    durationLabel: '6 Meses Reforçado',
+    description: 'Pacote VIP reforçado com duração de 6 meses (extensível a 12 meses) e campanhas promocionais ativas.',
+    badge: 'Mais Popular',
+    popular: true,
+    features: [
+      'Validade de 6 meses (com opção de anuidade)',
+      'Máximo destaque comercial em todas as categorias',
+      'Inclusão nas campanhas especiais e redes do marketplace',
+      'Atendimento e moderação VIP dedicada',
+      'Estatísticas detalhadas de visitas e conversão',
+    ],
+  },
+  {
+    id: 'vip_premium',
+    name: 'VIP Premium',
+    durationMonths: 'ilimitado',
+    durationLabel: 'Vitalício / Ilimitado',
+    description: 'Estatuto comercial permanente sem expiração automática para parceiros de referência.',
+    badge: 'Sem Expiração',
+    features: [
+      'Duração vitalícia e ilimitada (sem expiração automática)',
+      'Destaque no topo de topo de todas as páginas',
+      'Isenção total de qualquer suspensão por tempo',
+      'Canal VIP direto prioritário com a administração geral',
+      'Participação de honra em todos os catálogos nacionais',
+    ],
+  },
 ];
 
 export const INITIAL_PRODUCTS: Product[] = [

@@ -16,6 +16,7 @@ export const AuthModal: React.FC = () => {
     verifyRegistrationCode,
     resendRegistrationCode,
     requestPasswordReset,
+    loginWithGoogle,
     showToast,
   } = useApp();
 
@@ -38,6 +39,11 @@ export const AuthModal: React.FC = () => {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
 
+  // Google sign in prompt
+  const [googlePromptOpen, setGooglePromptOpen] = useState(false);
+  const [googleName, setGoogleName] = useState('');
+  const [googleEmail, setGoogleEmail] = useState('');
+
   if (!authModalOpen) return null;
 
   const handleClose = () => {
@@ -46,6 +52,7 @@ export const AuthModal: React.FC = () => {
     setIsVerifyingCode(false);
     setIsForgotPassword(false);
     setForgotPasswordSent(false);
+    setGooglePromptOpen(false);
   };
 
   const handleRoleSelect = (role: 'cliente' | 'vendedor') => {
@@ -73,6 +80,10 @@ export const AuthModal: React.FC = () => {
     if (result.success) {
       handleClose();
     } else {
+      if (result.needsEmailVerification) {
+        setPendingEmail(email.trim());
+        setIsVerifyingCode(true);
+      }
       setErrorMessage(result.error || 'Credenciais inválidas.');
     }
   };
@@ -184,6 +195,49 @@ export const AuthModal: React.FC = () => {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setErrorMessage('');
+    const res = await loginWithGoogle(authModalRole);
+    setLoading(false);
+    if (!res.success) {
+      if (
+        res.error?.includes('não configurado') ||
+        res.error?.includes('não suportado') ||
+        res.error?.includes('não está ativado') ||
+        res.error?.includes('provider is not enabled') ||
+        res.error?.includes('Failed to fetch')
+      ) {
+        setGooglePromptOpen(true);
+      } else {
+        setErrorMessage(res.error || 'Erro ao autenticar com o Google.');
+      }
+    } else {
+      handleClose();
+    }
+  };
+
+  const handleGooglePromptSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleEmail.trim()) {
+      setErrorMessage('Por favor introduza o seu e-mail Google.');
+      return;
+    }
+    setLoading(true);
+    setErrorMessage('');
+    const res = await loginWithGoogle(authModalRole, {
+      name: googleName.trim() || googleEmail.split('@')[0],
+      email: googleEmail.trim().toLowerCase(),
+    });
+    setLoading(false);
+    if (res.success) {
+      setGooglePromptOpen(false);
+      handleClose();
+    } else {
+      setErrorMessage(res.error || 'Erro ao autenticar com a conta Google.');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
@@ -191,7 +245,7 @@ export const AuthModal: React.FC = () => {
         <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 p-6 text-white relative">
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -204,7 +258,9 @@ export const AuthModal: React.FC = () => {
           </div>
 
           <h2 className="text-2xl font-bold font-display">
-            {isVerifyingCode
+            {googlePromptOpen
+              ? 'Continuar com Google'
+              : isVerifyingCode
               ? 'Confirmar E-mail'
               : isForgotPassword
               ? 'Recuperar Palavra-passe'
@@ -213,7 +269,9 @@ export const AuthModal: React.FC = () => {
               : 'Criar Nova Conta'}
           </h2>
           <p className="text-xs text-slate-300 mt-1">
-            {isVerifyingCode
+            {googlePromptOpen
+              ? `Aceder instantaneamente com conta Google como ${authModalRole === 'cliente' ? 'Cliente Comprador' : 'Comerciante Vendedor'}.`
+              : isVerifyingCode
               ? 'Introduza o código de 6 dígitos enviado para o seu correio eletrónico.'
               : isForgotPassword
               ? 'Insira o seu e-mail para receber as instruções de recuperação.'
@@ -233,8 +291,75 @@ export const AuthModal: React.FC = () => {
             </div>
           )}
 
-          {/* CODE VERIFICATION SCREEN (NO CODE DISPLAYED ON SCREEN!) */}
-          {isVerifyingCode ? (
+          {/* GOOGLE PROMPT SCREEN */}
+          {googlePromptOpen ? (
+            <form onSubmit={handleGooglePromptSubmit} className="space-y-4">
+              <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-950 text-xs leading-relaxed flex items-start gap-2.5">
+                <svg className="w-5 h-5 shrink-0 mt-0.5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <div>
+                  <p className="font-bold text-xs text-blue-900 mb-0.5">Autenticação com Conta Google</p>
+                  Aceda ou crie a sua conta Google como <strong className="uppercase">{authModalRole}</strong>. Se já tiver conta, os seus dados e histórico serão reconhecidos e preservados.
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nome Completo
+                </label>
+                <div className="relative">
+                  <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                  <input
+                    type="text"
+                    value={googleName}
+                    onChange={(e) => setGoogleName(e.target.value)}
+                    placeholder="Ex: João da Silva"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Endereço de E-mail Google
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                  <input
+                    type="email"
+                    required
+                    value={googleEmail}
+                    onChange={(e) => setGoogleEmail(e.target.value)}
+                    placeholder="exemplo@gmail.com"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm"
+              >
+                {loading ? 'A autenticar...' : `Continuar como ${authModalRole === 'cliente' ? 'Cliente' : 'Vendedor'}`}
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => setGooglePromptOpen(false)}
+                  className="text-xs text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                >
+                  Voltar às opções de autenticação
+                </button>
+              </div>
+            </form>
+          ) : isVerifyingCode ? (
             <form onSubmit={handleVerifyCodeSubmit} className="space-y-4">
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
                 <p className="font-semibold text-sm mb-1 text-amber-950 flex items-center gap-1.5">
@@ -374,6 +499,31 @@ export const AuthModal: React.FC = () => {
                     ? 'Comprador: consulte produtos, faça encomendas e converse com as lojas.'
                     : 'Comerciante: venda os seus produtos, gerencie estoque e receba pagamentos em Kwanzas.'}
                 </p>
+              </div>
+
+              {/* Google Single Sign-on Button */}
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className="w-full py-2.5 px-4 mb-3.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2.5 transition-all shadow-xs hover:shadow cursor-pointer"
+              >
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>Continuar com Google ({authModalRole === 'cliente' ? 'Cliente' : 'Vendedor'})</span>
+              </button>
+
+              {/* Divider */}
+              <div className="relative flex py-1 items-center mb-3.5">
+                <div className="flex-grow border-t border-slate-200"></div>
+                <span className="flex-shrink mx-3 text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+                  ou com e-mail e palavra-passe
+                </span>
+                <div className="flex-grow border-t border-slate-200"></div>
               </div>
 
               {/* Login or Register Form */}

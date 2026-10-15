@@ -19,11 +19,53 @@ export const getSupabaseClient = (): SupabaseClient | null => {
   const { url, anonKey } = getSupabaseConfig();
   if (!url || !anonKey) return null;
   try {
-    return createClient(url, anonKey);
+    return createClient(url, anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
   } catch (err) {
     console.error('Falha ao inicializar cliente Supabase:', err);
     return null;
   }
+};
+
+export const translateSupabaseError = (err: any): string => {
+  if (!err) return 'Ocorreu um erro inesperado.';
+  const message = typeof err === 'string' ? err : err.message || '';
+  const msgLower = message.toLowerCase();
+
+  if (msgLower.includes('invalid login credentials') || msgLower.includes('invalid credentials')) {
+    return 'E-mail ou palavra-passe incorretos. Por favor verifique e tente novamente.';
+  }
+  if (msgLower.includes('email not confirmed')) {
+    return 'O seu e-mail ainda não foi confirmado. Por favor introduza o código de confirmação recebido na sua caixa de correio.';
+  }
+  if (msgLower.includes('user already registered') || msgLower.includes('already exists')) {
+    return 'Já existe uma conta registada com este endereço de e-mail.';
+  }
+  if (msgLower.includes('password should be at least')) {
+    return 'A palavra-passe deve conter pelo menos 6 caracteres.';
+  }
+  if (msgLower.includes('rate limit') || msgLower.includes('too many requests')) {
+    return 'Limite de pedidos atingido. Aguarde alguns minutos antes de tentar novamente.';
+  }
+  if (msgLower.includes('token has expired') || msgLower.includes('invalid token') || msgLower.includes('otp expired')) {
+    return 'O código de confirmação expirou ou é inválido. Por favor solicite um novo código.';
+  }
+  if (msgLower.includes('signup is disabled')) {
+    return 'O registo de novos utilizadores está temporariamente indisponível no servidor.';
+  }
+  if (msgLower.includes('error sending confirmation email') || msgLower.includes('error sending')) {
+    return 'Erro no envio do e-mail via servidor SMTP. Verifique a configuração SMTP no Supabase.';
+  }
+  if (msgLower.includes('unsupported provider') || msgLower.includes('provider is not enabled') || msgLower.includes('oauth')) {
+    return 'O provedor Google ainda não foi ativado no painel do Supabase (Authentication > Providers > Google).';
+  }
+
+  return message;
 };
 
 export const testSupabaseConnection = async (url: string, anonKey: string): Promise<{ success: boolean; message: string }> => {
@@ -31,9 +73,9 @@ export const testSupabaseConnection = async (url: string, anonKey: string): Prom
     const client = createClient(url, anonKey);
     const { error } = await client.from('profiles').select('count', { count: 'exact', head: true });
     if (error && error.code !== 'PGRST116' && !error.message.includes('relation "profiles" does not exist')) {
-      return { success: false, message: `Erro ao conectar: ${error.message}` };
+      return { success: false, message: `Erro ao conectar: ${translateSupabaseError(error)}` };
     }
-    return { success: true, message: 'Conexão ao Supabase estabelecida com sucesso!' };
+    return { success: true, message: 'Conexão ao Supabase estabelecida com sucesso! Tabelas acessíveis.' };
   } catch (err: any) {
     return { success: false, message: `Falha na requisição: ${err.message || err}` };
   }
@@ -84,18 +126,23 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   phone TEXT,
   role user_role DEFAULT 'cliente' NOT NULL,
   province TEXT DEFAULT 'Luanda',
+  avatar TEXT,
+  auth_provider TEXT DEFAULT 'email',
   is_suspended BOOLEAN DEFAULT FALSE,
   suspension_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. GATILHO AUTOMÁTICO PARA CRIAR PERFIL AO CRIAR CONTA NO AUTH DO SUPABASE
+-- 4. GATILHO AUTOMÁTICO PARA CRIAR PERFIL AO CRIAR CONTA NO AUTH DO SUPABASE (EMAIL OU GOOGLE)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
   assigned_role user_role := 'cliente';
+  user_name TEXT;
+  user_avatar TEXT;
+  user_provider TEXT;
 BEGIN
-  -- albinojambav@gmail.com É AUTOMATICAMENTE SUPER ADMINISTRADOR
+  -- albinojambav@gmail.com É AUTOMATICAMENTE SUPER ADMINISTRADOR OFICIAL
   IF LOWER(NEW.email) = 'albinojambav@gmail.com' THEN
     assigned_role := 'admin';
   ELSIF (NEW.raw_user_meta_data->>'role') = 'vendedor' THEN
@@ -104,18 +151,43 @@ BEGIN
     assigned_role := 'cliente';
   END IF;
 
-  INSERT INTO public.profiles (id, name, email, phone, role, province)
+  user_name := COALESCE(
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'name',
+    split_part(NEW.email, '@', 1)
+  );
+
+  user_avatar := COALESCE(
+    NEW.raw_user_meta_data->>'avatar_url',
+    NEW.raw_user_meta_data->>'picture',
+    ''
+  );
+
+  user_provider := COALESCE(
+    NEW.raw_app_meta_data->>'provider',
+    'email'
+  );
+
+  INSERT INTO public.profiles (id, name, email, phone, role, province, avatar, auth_provider)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+    user_name,
     NEW.email,
     NEW.raw_user_meta_data->>'phone',
     assigned_role,
-    COALESCE(NEW.raw_user_meta_data->>'province', 'Luanda')
+    COALESCE(NEW.raw_user_meta_data->>'province', 'Luanda'),
+    user_avatar,
+    user_provider
   )
   ON CONFLICT (id) DO UPDATE SET
-    role = EXCLUDED.role,
-    name = EXCLUDED.name;
+    role = CASE 
+      WHEN LOWER(EXCLUDED.email) = 'albinojambav@gmail.com' THEN 'admin'::user_role
+      ELSE EXCLUDED.role 
+    END,
+    name = COALESCE(EXCLUDED.name, profiles.name),
+    phone = COALESCE(EXCLUDED.phone, profiles.phone),
+    province = COALESCE(EXCLUDED.province, profiles.province),
+    avatar = CASE WHEN EXCLUDED.avatar <> '' THEN EXCLUDED.avatar ELSE profiles.avatar END;
 
   RETURN NEW;
 END;
@@ -124,7 +196,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Ativar o gatilho na tabela auth.users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
-  AFTER INSERT OR UPDATE OF email ON auth.users
+  AFTER INSERT OR UPDATE OF email, raw_user_meta_data ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- 5. TABELA DE LOJAS
@@ -213,18 +285,115 @@ CREATE TABLE IF NOT EXISTS public.payouts (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 9. SEGURANÇA (ROW LEVEL SECURITY)
+-- 9. SEGURANÇA E POLÍTICAS RLS COMPLETAS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payouts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Perfis visíveis por utilizadores autenticados" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Utilizador atualiza o próprio perfil" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+-- Políticas Profiles
+DROP POLICY IF EXISTS "Perfis públicos para consulta" ON public.profiles;
+CREATE POLICY "Perfis públicos para consulta" ON public.profiles FOR SELECT USING (true);
 
-CREATE POLICY "Produtos públicos para consulta" ON public.products FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Utilizador insere o próprio perfil" ON public.profiles;
+CREATE POLICY "Utilizador insere o próprio perfil" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Utilizador atualiza o próprio perfil" ON public.profiles;
+CREATE POLICY "Utilizador atualiza o próprio perfil" ON public.profiles FOR UPDATE USING (
+  auth.uid() = id OR EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'albinojambav@gmail.com')
+  )
+);
+
+-- Políticas Stores
+DROP POLICY IF EXISTS "Lojas públicas para consulta" ON public.stores;
 CREATE POLICY "Lojas públicas para consulta" ON public.stores FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Vendedores criam loja" ON public.stores;
+CREATE POLICY "Vendedores criam loja" ON public.stores FOR INSERT WITH CHECK (auth.uid() = owner_id);
+
+DROP POLICY IF EXISTS "Proprietário ou Admin atualiza loja" ON public.stores;
+CREATE POLICY "Proprietário ou Admin atualiza loja" ON public.stores FOR UPDATE USING (
+  auth.uid() = owner_id OR EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'albinojambav@gmail.com')
+  )
+);
+
+-- Políticas Products
+DROP POLICY IF EXISTS "Produtos públicos para consulta" ON public.products;
+CREATE POLICY "Produtos públicos para consulta" ON public.products FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Vendedor insere produtos da sua loja" ON public.products;
+CREATE POLICY "Vendedor insere produtos da sua loja" ON public.products FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM public.stores WHERE id = store_id AND owner_id = auth.uid()) OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'albinojambav@gmail.com'))
+);
+
+DROP POLICY IF EXISTS "Vendedor atualiza produtos da sua loja" ON public.products;
+CREATE POLICY "Vendedor atualiza produtos da sua loja" ON public.products FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM public.stores WHERE id = store_id AND owner_id = auth.uid()) OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'albinojambav@gmail.com'))
+);
+
+DROP POLICY IF EXISTS "Vendedor elimina produtos da sua loja" ON public.products;
+CREATE POLICY "Vendedor elimina produtos da sua loja" ON public.products FOR DELETE USING (
+  EXISTS (SELECT 1 FROM public.stores WHERE id = store_id AND owner_id = auth.uid()) OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'albinojambav@gmail.com'))
+);
+
+-- Políticas Orders
+DROP POLICY IF EXISTS "Consultar encomendas relevantes" ON public.orders;
+CREATE POLICY "Consultar encomendas relevantes" ON public.orders FOR SELECT USING (
+  auth.uid() = customer_id OR
+  EXISTS (SELECT 1 FROM public.stores WHERE id = store_id AND owner_id = auth.uid()) OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'albinojambav@gmail.com'))
+);
+
+DROP POLICY IF EXISTS "Clientes e utilizadores criam encomendas" ON public.orders;
+CREATE POLICY "Clientes e utilizadores criam encomendas" ON public.orders FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Atualizar encomendas autorizadas" ON public.orders;
+CREATE POLICY "Atualizar encomendas autorizadas" ON public.orders FOR UPDATE USING (
+  auth.uid() = customer_id OR
+  EXISTS (SELECT 1 FROM public.stores WHERE id = store_id AND owner_id = auth.uid()) OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'albinojambav@gmail.com'))
+);
+
+-- Políticas Payouts
+DROP POLICY IF EXISTS "Consultar levantamentos" ON public.payouts;
+CREATE POLICY "Consultar levantamentos" ON public.payouts FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.stores WHERE id = store_id AND owner_id = auth.uid()) OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'albinojambav@gmail.com'))
+);
+
+DROP POLICY IF EXISTS "Criar pedidos de levantamento" ON public.payouts;
+CREATE POLICY "Criar pedidos de levantamento" ON public.payouts FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM public.stores WHERE id = store_id AND owner_id = auth.uid()) OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'albinojambav@gmail.com'))
+);
+
+-- 10. TABELA DE HISTÓRICO DE ACESSOS (AUDIT LOG DE LOGINS)
+CREATE TABLE IF NOT EXISTS public.login_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  user_email TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  role user_role NOT NULL,
+  auth_method TEXT NOT NULL, -- 'email_password' ou 'google'
+  status TEXT DEFAULT 'sucesso',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.login_history ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins consultam histórico de acessos" ON public.login_history;
+CREATE POLICY "Admins consultam histórico de acessos" ON public.login_history FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'albinojambav@gmail.com'))
+);
+
+DROP POLICY IF EXISTS "Inserção permitida para registo de login" ON public.login_history;
+CREATE POLICY "Inserção permitida para registo de login" ON public.login_history FOR INSERT WITH CHECK (true);
 `;
 
 // ==========================================
@@ -240,13 +409,13 @@ export const supabaseSignUp = async (
   if (!client) return null;
 
   return await client.auth.signUp({
-    email,
-    password,
+    email: email.trim().toLowerCase(),
+    password: password.trim(),
     options: {
       data: {
-        name: metadata.name,
+        name: metadata.name.trim(),
         role: metadata.role,
-        phone: metadata.phone || '',
+        phone: metadata.phone?.trim() || '',
         province: metadata.province || 'Luanda',
       },
       emailRedirectTo: `${window.location.origin}/`,
@@ -258,18 +427,21 @@ export const supabaseVerifyOtp = async (email: string, token: string) => {
   const client = getSupabaseClient();
   if (!client) return null;
 
-  // Supabase supports 'signup' or 'email' token verification
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanToken = token.trim();
+
+  // 1. Tentar tipo 'signup'
   const res = await client.auth.verifyOtp({
-    email,
-    token: token.trim(),
+    email: cleanEmail,
+    token: cleanToken,
     type: 'signup',
   });
 
   if (res.error) {
-    // Try type 'email' fallback
+    // 2. Tentar tipo 'email' como alternativa compatível com modelos SMTP do Supabase
     return await client.auth.verifyOtp({
-      email,
-      token: token.trim(),
+      email: cleanEmail,
+      token: cleanToken,
       type: 'email',
     });
   }
@@ -283,7 +455,10 @@ export const supabaseResendOtp = async (email: string) => {
 
   return await client.auth.resend({
     type: 'signup',
-    email,
+    email: email.trim().toLowerCase(),
+    options: {
+      emailRedirectTo: `${window.location.origin}/`,
+    },
   });
 };
 
@@ -292,8 +467,8 @@ export const supabaseSignIn = async (email: string, password: string) => {
   if (!client) return null;
 
   return await client.auth.signInWithPassword({
-    email,
-    password,
+    email: email.trim().toLowerCase(),
+    password: password.trim(),
   });
 };
 
@@ -301,7 +476,7 @@ export const supabaseResetPassword = async (email: string) => {
   const client = getSupabaseClient();
   if (!client) return null;
 
-  return await client.auth.resetPasswordForEmail(email, {
+  return await client.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
     redirectTo: `${window.location.origin}/?recovery=true`,
   });
 };
@@ -311,7 +486,7 @@ export const supabaseUpdatePassword = async (newPassword: string) => {
   if (!client) return null;
 
   return await client.auth.updateUser({
-    password: newPassword,
+    password: newPassword.trim(),
   });
 };
 
@@ -333,9 +508,127 @@ export const supabaseGetProfile = async (userId: string) => {
     .single();
 
   if (error) {
-    console.warn('Erro ao carregar perfil do Supabase:', error.message);
+    console.warn('Perfil ainda não criado na tabela profiles:', error.message);
     return null;
   }
   return data;
 };
 
+export const supabaseGetCurrentSession = async () => {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data } = await client.auth.getSession();
+  return data.session;
+};
+
+export const supabaseOnAuthStateChange = (
+  callback: (event: string, session: any) => void
+) => {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data: { subscription } } = client.auth.onAuthStateChange(callback);
+  return subscription;
+};
+
+export const supabaseSignInWithGoogle = async (role: 'cliente' | 'vendedor') => {
+  const client = getSupabaseClient();
+  if (!client) return { data: null, error: new Error('Supabase não configurado') };
+
+  try {
+    localStorage.setItem('ackz_google_pending_role', role);
+
+    const res = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+        queryParams: {
+          prompt: 'select_account',
+        },
+      },
+    });
+    return res;
+  } catch (err: any) {
+    return { data: null, error: err };
+  }
+};
+
+export const supabaseUpdateProfile = async (
+  userId: string,
+  updates: { name?: string; phone?: string; province?: string; avatar?: string }
+) => {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  try {
+    const { data, error } = await client
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.warn('Erro ao atualizar perfil no Supabase:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.warn('Falha na chamada supabaseUpdateProfile:', err);
+    return null;
+  }
+};
+
+export const supabaseRecordLogin = async (entry: {
+  userId?: string;
+  userEmail: string;
+  userName: string;
+  role: string;
+  authMethod: string;
+  status?: string;
+}) => {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  try {
+    const { data, error } = await client.from('login_history').insert({
+      user_id: entry.userId || null,
+      user_email: entry.userEmail.toLowerCase().trim(),
+      user_name: entry.userName.trim(),
+      role: entry.role,
+      auth_method: entry.authMethod,
+      status: entry.status || 'sucesso',
+    });
+
+    if (error) {
+      console.warn('Não foi possível gravar histórico de login no Supabase:', error.message);
+    }
+    return data;
+  } catch (err) {
+    console.warn('Falha ao registar login no Supabase:', err);
+    return null;
+  }
+};
+
+export const supabaseGetLoginHistory = async () => {
+  const client = getSupabaseClient();
+  if (!client) return [];
+
+  try {
+    const { data, error } = await client
+      .from('login_history')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) {
+      console.warn('Erro ao ler login_history no Supabase:', error.message);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    console.warn('Falha ao obter histórico de login:', err);
+    return [];
+  }
+};

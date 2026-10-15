@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatKwanza } from '../../data/mockData';
-import { Store, User, ReportItem } from '../../types';
+import { Store, User, ReportItem, LoginHistoryItem } from '../../types';
 import * as storage from '../../services/storage';
 import {
   saveSupabaseConfig,
@@ -25,7 +25,12 @@ import {
   ArrowRight,
   TrendingUp,
   X,
-  FileText
+  FileText,
+  Clock,
+  RefreshCw,
+  Filter,
+  Mail,
+  KeyRound
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -47,7 +52,32 @@ export const AdminDashboard: React.FC = () => {
     showToast,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'visao-geral' | 'lojas' | 'utilizadores' | 'denuncias' | 'vip' | 'supabase'>('lojas');
+  const [activeTab, setActiveTab] = useState<'visao-geral' | 'lojas' | 'utilizadores' | 'denuncias' | 'vip' | 'supabase' | 'historico'>('lojas');
+
+  // Login history state
+  const [loginLogs, setLoginLogs] = useState<LoginHistoryItem[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+  const [logSearch, setLogSearch] = useState('');
+  const [logMethodFilter, setLogMethodFilter] = useState<'all' | 'google' | 'email_password'>('all');
+  const [logRoleFilter, setLogRoleFilter] = useState<'all' | 'cliente' | 'vendedor' | 'admin'>('all');
+
+  const fetchLoginLogs = useCallback(async () => {
+    setLoadingLogs(true);
+    try {
+      const logs = await storage.getLoginHistory();
+      setLoginLogs(logs);
+    } catch (err) {
+      console.error('Erro ao obter histórico de acessos:', err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'historico') {
+      fetchLoginLogs();
+    }
+  }, [activeTab, fetchLoginLogs]);
 
   // Claim modal state
   const [claimModalStoreId, setClaimModalStoreId] = useState<string | null>(null);
@@ -243,6 +273,18 @@ export const AdminDashboard: React.FC = () => {
         >
           <Database className="w-4 h-4 text-emerald-600" />
           <span>Base de Dados & Supabase</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('historico')}
+          className={`px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+            activeTab === 'historico'
+              ? 'border-amber-600 text-amber-800 bg-amber-50/50'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Clock className="w-4 h-4 text-purple-600" />
+          <span>Histórico de Acessos</span>
         </button>
       </div>
 
@@ -624,6 +666,253 @@ export const AdminDashboard: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* TAB 6: HISTÓRICO DE ACESSOS (AUDITORIA DE LOGINS GOOGLE E E-MAIL) */}
+      {activeTab === 'historico' && (
+        <div className="space-y-6">
+          {/* Header Card */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse"></span>
+                <span className="text-xs uppercase font-bold tracking-wider text-purple-700">
+                  Registo & Auditoria de Autenticações
+                </span>
+              </div>
+              <h3 className="font-bold text-xl font-display text-slate-900">
+                Histórico de Acessos ao Sistema
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Registo detalhado de logins e métodos de autenticação (Google e E-mail) para consulta pelo administrador.
+              </p>
+            </div>
+
+            <button
+              onClick={fetchLoginLogs}
+              disabled={loadingLogs}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingLogs ? 'animate-spin' : ''}`} />
+              {loadingLogs ? 'A atualizar...' : 'Atualizar Histórico'}
+            </button>
+          </div>
+
+          {/* Quick Metrics */}
+          {(() => {
+            const total = loginLogs.length;
+            const googleCount = loginLogs.filter((l) => l.authMethod === 'google').length;
+            const emailCount = loginLogs.filter((l) => l.authMethod === 'email_password').length;
+            const successCount = loginLogs.filter((l) => l.status === 'sucesso').length;
+            const failCount = loginLogs.filter((l) => l.status === 'falha').length;
+
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                    Total de Logins
+                  </span>
+                  <span className="text-2xl font-black font-display text-slate-900 mt-1 block">
+                    {total}
+                  </span>
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">Auditados no sistema</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-blue-200 shadow-xs">
+                  <span className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider block flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    </svg>
+                    Acessos Google
+                  </span>
+                  <span className="text-2xl font-black font-display text-blue-900 mt-1 block">
+                    {googleCount}
+                  </span>
+                  <span className="text-[10px] text-blue-600 mt-0.5 block">Contas Google vinculadas</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-amber-200 shadow-xs">
+                  <span className="text-[11px] font-semibold text-amber-800 uppercase tracking-wider block flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-amber-700" />
+                    E-mail & Senha
+                  </span>
+                  <span className="text-2xl font-black font-display text-amber-950 mt-1 block">
+                    {emailCount}
+                  </span>
+                  <span className="text-[10px] text-amber-700 mt-0.5 block">Logins tradicionais</span>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-xs">
+                  <span className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider block flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    Taxa de Sucesso
+                  </span>
+                  <span className="text-2xl font-black font-display text-emerald-950 mt-1 block">
+                    {total > 0 ? Math.round((successCount / total) * 100) : 100}%
+                  </span>
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                    {successCount} ok • {failCount} falhas
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Filters Bar */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="text"
+                value={logSearch}
+                onChange={(e) => setLogSearch(e.target.value)}
+                placeholder="Pesquisar por e-mail ou nome..."
+                className="w-full pl-9 pr-4 py-2 text-xs border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={logMethodFilter}
+                onChange={(e) => setLogMethodFilter(e.target.value as any)}
+                className="px-3 py-2 text-xs border border-slate-300 rounded-xl outline-none bg-white text-slate-700 font-medium"
+              >
+                <option value="all">Todos os Métodos</option>
+                <option value="google">Apenas Google</option>
+                <option value="email_password">Apenas E-mail e Palavra-passe</option>
+              </select>
+
+              <select
+                value={logRoleFilter}
+                onChange={(e) => setLogRoleFilter(e.target.value as any)}
+                className="px-3 py-2 text-xs border border-slate-300 rounded-xl outline-none bg-white text-slate-700 font-medium"
+              >
+                <option value="all">Todas as Funções</option>
+                <option value="cliente">Clientes</option>
+                <option value="vendedor">Vendedores</option>
+                <option value="admin">Administrador Geral</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Table */}
+          {(() => {
+            const filtered = loginLogs.filter((log) => {
+              const matchesSearch =
+                !logSearch.trim() ||
+                log.userEmail.toLowerCase().includes(logSearch.toLowerCase().trim()) ||
+                log.userName.toLowerCase().includes(logSearch.toLowerCase().trim());
+              const matchesMethod = logMethodFilter === 'all' || log.authMethod === logMethodFilter;
+              const matchesRole = logRoleFilter === 'all' || log.role === logRoleFilter;
+              return matchesSearch && matchesMethod && matchesRole;
+            });
+
+            if (filtered.length === 0) {
+              return (
+                <div className="p-12 text-center bg-white rounded-3xl border border-slate-200">
+                  <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-700">Nenhum registo de acesso encontrado</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Os acessos efetuados pelos utilizadores (via Google ou E-mail) aparecerão aqui automaticamente.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                      <tr>
+                        <th className="px-5 py-3.5">Data & Hora</th>
+                        <th className="px-5 py-3.5">Utilizador</th>
+                        <th className="px-5 py-3.5">Tipo de Conta</th>
+                        <th className="px-5 py-3.5">Método de Acesso</th>
+                        <th className="px-5 py-3.5">Resultado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filtered.map((log) => {
+                        const dateFormatted = new Date(log.timestamp).toLocaleString('pt-AO', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        });
+
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="px-5 py-3.5 whitespace-nowrap text-slate-600 font-mono text-[11px]">
+                              {dateFormatted}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <p className="font-bold text-slate-900">{log.userName}</p>
+                              <p className="text-[11px] text-slate-500 font-mono">{log.userEmail}</p>
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                  log.role === 'admin'
+                                    ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                    : log.role === 'vendedor'
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                    : 'bg-amber-100 text-amber-900 border border-amber-200'
+                                }`}
+                              >
+                                {log.role === 'admin'
+                                  ? 'Super Admin'
+                                  : log.role === 'vendedor'
+                                  ? 'Vendedor'
+                                  : 'Cliente'}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              {log.authMethod === 'google' ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 text-[11px] font-semibold border border-blue-200">
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                                  </svg>
+                                  Google OAuth
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200">
+                                  <Mail className="w-3.5 h-3.5 text-slate-500" />
+                                  E-mail & Senha
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-5 py-3.5 whitespace-nowrap">
+                              {log.status === 'sucesso' ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  Sucesso
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 text-[11px] font-bold">
+                                  <X className="w-3.5 h-3.5 text-rose-600" />
+                                  Falha
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

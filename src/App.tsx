@@ -11,6 +11,8 @@ import { VendorDashboard } from './components/vendor/VendorDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AuthModal } from './components/auth/AuthModal';
 import { ChangePasswordModal } from './components/auth/ChangePasswordModal';
+import { ProfileModal } from './components/auth/ProfileModal';
+import { ClaimProfileModal } from './components/profile/ClaimProfileModal';
 import { ProductDetailModal } from './components/product/ProductDetailModal';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { CheckoutModal } from './components/checkout/CheckoutModal';
@@ -53,6 +55,8 @@ const MainLayout: React.FC = () => {
       {/* Global Modals & Drawers */}
       <AuthModal />
       <ChangePasswordModal />
+      <ProfileModal />
+      <ClaimProfileModal />
       <ProductDetailModal />
       <CartDrawer />
       <CheckoutModal />

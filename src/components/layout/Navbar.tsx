@@ -42,6 +42,7 @@ export const Navbar: React.FC = () => {
     setNotificationsDrawerOpen,
     setOrdersModalOpen,
     setChangePasswordModalOpen,
+    setProfileModalOpen,
     notifications,
     conversations,
     wishlist,
@@ -336,6 +337,16 @@ export const Navbar: React.FC = () => {
                   </div>
 
                   <div className="py-1 text-xs">
+                    <button
+                      onClick={() => {
+                        setProfileModalOpen(true);
+                        setUserDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-800 font-bold flex items-center gap-2 cursor-pointer"
+                    >
+                      <UserIcon className="w-4 h-4 text-amber-600" />
+                      O Meu Perfil
+                    </button>
                     {isAdmin && (
                       <button
                         onClick={() => {
